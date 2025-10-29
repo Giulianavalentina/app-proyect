@@ -1,98 +1,243 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+// app/(tabs)/index.tsx
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import {
+  Alert,
+  FlatList,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
+} from 'react-native';
+import { MedicationService } from '../../src/services/medicationService';
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+interface Medication {
+  id: string;
+  name: string;
+  dosage: string;
+  schedule: string[];
+  quantity: number;
+  alarmsEnabled: boolean;
+}
 
 export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+  const router = useRouter();
+  const [medications, setMedications] = useState<Medication[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+  const loadMedications = async () => {
+    try {
+      // Esto depende de cómo tengas implementado MedicationService
+      const meds = await MedicationService.getMedications();
+      setMedications(meds || []);
+    } catch (error) {
+      console.error('Error loading medications:', error);
+      setMedications([]);
+    }
+  };
+
+  useEffect(() => {
+    loadMedications();
+  }, []);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadMedications();
+    setRefreshing(false);
+  };
+
+  const handleDelete = (medication: Medication) => {
+    Alert.alert(
+      'Eliminar Medicamento',
+      `¿Estás seguro de que quieres eliminar ${medication.name}?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await MedicationService.deleteMedication(medication.id);
+              await loadMedications(); // Recargar la lista
+              Alert.alert('✅', 'Medicamento eliminado correctamente');
+            } catch (error) {
+              Alert.alert('❌', 'Error al eliminar el medicamento');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleEdit = (medication: Medication) => {
+    // Navegar a pantalla de edición
+    // router.push(`/medication/${medication.id}`);
+  };
+
+  const renderMedication = ({ item }: { item: Medication }) => (
+    <View style={styles.medicationCard}>
+      <View style={styles.medicationInfo}>
+        <Text style={styles.medicationName}>{item.name}</Text>
+        <Text style={styles.medicationDosage}>{item.dosage}</Text>
+        <Text style={styles.medicationSchedule}>
+          Horarios: {item.schedule.join(', ')}
+        </Text>
+        <Text style={styles.medicationQuantity}>
+          Cantidad: {item.quantity} pastillas
+        </Text>
+      </View>
+      
+      <View style={styles.actions}>
+        <TouchableOpacity 
+          onPress={() => handleEdit(item)}
+          style={styles.editButton}
+        >
+          <Ionicons name="pencil" size={20} color="#007AFF" />
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          onPress={() => handleDelete(item)}
+          style={styles.deleteButton}
+        >
+          <Ionicons name="trash" size={20} color="#FF3B30" />
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.title}>Mis Medicamentos</Text>
+        <TouchableOpacity 
+          style={styles.addButton}
+          onPress={() => router.push('/medication')}
+        >
+          <Ionicons name="add-circle" size={24} color="#007AFF" />
+          <Text style={styles.addButtonText}>Agregar</Text>
+        </TouchableOpacity>
+      </View>
+
+      {medications.length === 0 ? (
+        <View style={styles.emptyState}>
+          <Ionicons name="medical" size={64} color="#CCCCCC" />
+          <Text style={styles.emptyStateText}>No hay medicamentos</Text>
+          <Text style={styles.emptyStateSubtext}>
+            Presiona "Agregar" para añadir tu primer medicamento
+          </Text>
+        </View>
+      ) : (
+        <FlatList
+          data={medications}
+          renderItem={renderMedication}
+          keyExtractor={(item) => item.id}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+          style={styles.list}
+        />
+      )}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
+  container: {
+    flex: 1,
+    backgroundColor: '#F5F5F5',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    paddingTop: 60,
+    backgroundColor: 'white',
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  addButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    padding: 8,
   },
-  stepContainer: {
-    gap: 8,
+  addButtonText: {
+    color: '#007AFF',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 4,
+  },
+  list: {
+    flex: 1,
+    padding: 16,
+  },
+  medicationCard: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  medicationInfo: {
+    flex: 1,
+  },
+  medicationName: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 4,
+  },
+  medicationDosage: {
+    fontSize: 16,
+    color: '#666',
+    marginBottom: 4,
+  },
+  medicationSchedule: {
+    fontSize: 14,
+    color: '#888',
+    marginBottom: 4,
+  },
+  medicationQuantity: {
+    fontSize: 14,
+    color: '#888',
+  },
+  actions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  editButton: {
+    padding: 8,
+  },
+  deleteButton: {
+    padding: 8,
+  },
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 40,
+  },
+  emptyStateText: {
+    fontSize: 18,
+    color: '#666',
+    marginTop: 16,
     marginBottom: 8,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  emptyStateSubtext: {
+    fontSize: 14,
+    color: '#999',
+    textAlign: 'center',
   },
 });
