@@ -1,16 +1,32 @@
-import { act, renderHook, waitFor } from '@testing-library/react';
-import { useAlarms } from '../src/hooks/useAlarms';
+import { act, renderHook, waitFor } from "@testing-library/react";
+import { useAlarms } from "../src/hooks/useAlarms";
+
+jest.mock("@react-native-async-storage/async-storage");
 
 const expectedTestAlarms = [
-  { id: '1', medication: 'Paracetamol', dosage: 500, time: '08:00', isActive: true, days: ['LUN', 'MAR', 'MIE', 'JUE', 'VIE'] },
-  { id: '2', medication: 'Ibuprofeno', dosage: 400, time: '20:00', isActive: true, days: ['LUN', 'MIE', 'VIE'] }
+  {
+    id: "1",
+    medication: "Paracetamol",
+    dosage: 500,
+    time: "08:00",
+    isActive: true,
+    days: ["LUN", "MAR", "MIE", "JUE", "VIE"],
+  },
+  {
+    id: "2",
+    medication: "Ibuprofeno",
+    dosage: 400,
+    time: "20:00",
+    isActive: true,
+    days: ["LUN", "MIE", "VIE"],
+  },
 ];
+jest.mock("@react-native-async-storage/async-storage");
 
-
-describe('useAlarms', () => {
+describe("useAlarms", () => {
   beforeAll(() => {
     jest.useFakeTimers();
-    jest.spyOn(console, 'log').mockImplementation(() => {});
+    jest.spyOn(console, "log").mockImplementation(() => {});
   });
 
   afterAll(() => {
@@ -18,39 +34,42 @@ describe('useAlarms', () => {
     (console.log as jest.Mock).mockRestore();
   });
 
-  test('debe inicializarse con alarms como array vacío y loading en true', () => {
+  test("debe inicializarse con alarms como array vacío y loading en true", () => {
     const { result } = renderHook(() => useAlarms());
-    
-    const { alarms, loading } = result.current; 
+
+    const { alarms, loading } = result.current;
 
     expect(alarms).toEqual([]);
     expect(loading).toBe(true);
   });
-  
-  test('debe poner loading en false y alarms a un array vacío después del timeout', async () => {
+
+  test("debe poner loading en false y alarms a un array vacío después del timeout", async () => {
     const { result } = renderHook(() => useAlarms());
 
     act(() => {
-      jest.runAllTimers(); 
+      jest.runAllTimers();
     });
 
     await waitFor(() => {
-        const { alarms, loading } = result.current; 
-        
-        expect(loading).toBe(false); 
-        expect(alarms).toEqual([]); 
+      const { alarms, loading } = result.current;
+
+      expect(loading).toBe(false);
+      expect(alarms).toEqual([]);
     });
   });
 
-  test('deleteAlarm debe llamar a console.log con el ID correcto', () => {
+  test("deleteAlarm debe llamar a console.log con el ID correcto", () => {
     const { result } = renderHook(() => useAlarms());
-    
-    const alarmIdToDelete = '1';
+
+    const alarmIdToDelete = "1";
 
     act(() => {
       result.current.deleteAlarm(alarmIdToDelete);
     });
 
-    expect(console.log).toHaveBeenCalledWith('Eliminar alarma:', alarmIdToDelete);
+    expect(console.log).toHaveBeenCalledWith(
+      "Eliminar alarma:",
+      alarmIdToDelete
+    );
   });
 });
