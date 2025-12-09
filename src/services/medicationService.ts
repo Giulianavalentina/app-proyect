@@ -1,93 +1,79 @@
-// src/services/medicationService.ts
-export interface Medication {
-  id: string;
-  name: string;
-  dosage: string;
-  schedule: string[];
-  quantity: number;
-  alarmsEnabled: boolean;
-}
+import { eq } from "drizzle-orm";
+import { useDrizzleDB } from "../../db";
+import { alarms, medications } from "../../db/schema";
 
-export class MedicationService {
-  private static storageKey = 'medications';
+// Tipos exportados desde db/index.ts
+import type {
+  Alarm,
+  Medication,
+  NewAlarm,
+  NewMedication,
+} from "../../db";
 
-  static async saveMedication(medication: Omit<Medication, 'id'>): Promise<boolean> {
-    try {
-      const medications = await this.getMedications();
-      const newMedication: Medication = {
-        ...medication,
-        id: Date.now().toString(),
-      };
-      medications.push(newMedication);
-      await this.saveToStorage(medications);
-      return true;
-    } catch (error) {
-      console.error('Error saving medication:', error);
-      return false;
-    }
-  }
+export function useMedicationService() {
+  const db = useDrizzleDB();
 
-  static async getMedications(): Promise<Medication[]> {
-    try {
-      // Por ahora retornamos datos de ejemplo para probar
-      return [
-        {
-          id: '1',
-          name: 'Aspirina',
-          dosage: '500mg',
-          schedule: ['08:00', '20:00'],
-          quantity: 30,
-          alarmsEnabled: true
-        },
-        {
-          id: '2', 
-          name: 'Vitamina C',
-          dosage: '1000mg',
-          schedule: ['09:00'],
-          quantity: 60,
-          alarmsEnabled: true
-        }
-      ];
-    } catch (error) {
-      console.error('Error getting medications:', error);
-      return [];
-    }
-  }
+  return {
+    /** -----------------------------
+     *  MEDICATIONS
+     *  ----------------------------- */
 
-  static async deleteMedication(id: string): Promise<boolean> {
-    try {
-      const medications = await this.getMedications();
-      const filteredMeds = medications.filter(med => med.id !== id);
-      await this.saveToStorage(filteredMeds);
-      return true;
-    } catch (error) {
-      console.error('Error deleting medication:', error);
-      return false;
-    }
-  }
+    // Crear medicamento
+    addMedication: async (data: NewMedication) => {
+      await db.insert(medications).values(data);
+    },
 
-  static async updateMedication(id: string, updates: Partial<Medication>): Promise<boolean> {
-    try {
-      const medications = await this.getMedications();
-      const index = medications.findIndex(med => med.id === id);
-      if (index === -1) return false;
-      
-      medications[index] = { ...medications[index], ...updates };
-      await this.saveToStorage(medications);
-      return true;
-    } catch (error) {
-      console.error('Error updating medication:', error);
-      return false;
-    }
-  }
+    // Obtener lista completa
+    getMedications: async (): Promise<Medication[]> => {
+      return await db.select().from(medications);
+    },
 
-  private static async saveToStorage(medications: Medication[]): Promise<void> {
-    // Para probar, solo mostramos en consola
-    console.log('Medications saved:', medications);
-  }
+    // Eliminar por ID
+    deleteMedication: async (id: number) => {
+      await db.delete(medications).where(eq(medications.id, id));
+    },
 
-  private static async getFromStorage(): Promise<Medication[]> {
-    // Para probar, retornamos array vacío
-    return [];
-  }
+    // Actualizar por ID
+    updateMedication: async (
+      id: number,
+      data: Partial<NewMedication>
+    ) => {
+      await db
+        .update(medications)
+        .set(data)
+        .where(eq(medications.id, id));
+    },
+
+    /** -----------------------------
+     *  ALARMS (asociadas a medicamentos)
+     *  ----------------------------- */
+
+    addAlarm: async (data: NewAlarm) => {
+      await db.insert(alarms).values(data);
+    },
+
+    getAlarms: async (): Promise<Alarm[]> => {
+      return await db.select().from(alarms);
+    },
+
+    getAlarmsByMedication: async (
+      medicationId: number
+    ): Promise<Alarm[]> => {
+      return await db
+        .select()
+        .from(alarms)
+        .where(eq(alarms.medicationId, medicationId));
+    },
+
+    deleteAlarm: async (id: number) => {
+      await db.delete(alarms).where(eq(alarms.id, id));
+    },
+
+    updateAlarm: async (
+      id: number,
+      data: Partial<NewAlarm>
+    ) => {
+      await db.update(alarms).set(data).where(eq(alarms.id, id));
+    },
+  };
 }

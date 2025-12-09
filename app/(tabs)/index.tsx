@@ -1,4 +1,3 @@
-// app/(tabs)/index.tsx
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
@@ -9,29 +8,45 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View
+  View,
 } from 'react-native';
-import { MedicationService } from '../../src/services/medicationService';
 
-interface Medication {
-  id: string;
+import { useMedicationService } from '../../src/services/medicationService';
+
+type MedicationItem = {
+  id: number;
   name: string;
-  dosage: string;
-  schedule: string[];
-  quantity: number;
-  alarmsEnabled: boolean;
-}
+  doseMg?: number;
+  // schedule, quantity, alarmsEnabled no están en el schema actual;
+  // si los agregás al schema, podés descomentarlos abajo:
+  // schedule?: string[];
+  // quantity?: number;
+  // alarmsEnabled?: boolean;
+};
 
 export default function HomeScreen() {
   const router = useRouter();
-  const [medications, setMedications] = useState<Medication[]>([]);
+  const { getMedications, deleteMedication } = useMedicationService();
+
+  const [medications, setMedications] = useState<MedicationItem[]>([]);
   const [refreshing, setRefreshing] = useState(false);
 
+  // --------------------------------------------------------------------
+  // Cargar medicamentos desde SQLite (Drizzle)
+  // --------------------------------------------------------------------
   const loadMedications = async () => {
     try {
-      // Esto depende de cómo tengas implementado MedicationService
-      const meds = await MedicationService.getMedications();
-      setMedications(meds || []);
+      const meds = await getMedications();
+      // Asegurarse de mapear campos si vienen diferentes
+      const mapped = (meds || []).map((m: any) => ({
+        id: m.id,
+        name: m.name,
+        doseMg: m.doseMg ?? m.dosage ?? undefined,
+        // schedule: m.schedule ? JSON.parse(m.schedule) : undefined,
+        // quantity: m.quantity,
+        // alarmsEnabled: m.alarmsEnabled === 1 ? true : false,
+      }));
+      setMedications(mapped);
     } catch (error) {
       console.error('Error loading medications:', error);
       setMedications([]);
@@ -48,7 +63,10 @@ export default function HomeScreen() {
     setRefreshing(false);
   };
 
-  const handleDelete = (medication: Medication) => {
+  // --------------------------------------------------------------------
+  // Eliminar medicamento
+  // --------------------------------------------------------------------
+  const handleDelete = (medication: MedicationItem) => {
     Alert.alert(
       'Eliminar Medicamento',
       `¿Estás seguro de que quieres eliminar ${medication.name}?`,
@@ -59,11 +77,12 @@ export default function HomeScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              await MedicationService.deleteMedication(medication.id);
-              await loadMedications(); // Recargar la lista
-              Alert.alert('✅', 'Medicamento eliminado correctamente');
+              await deleteMedication(medication.id);
+              await loadMedications();
+              Alert.alert('✅ Eliminado', 'Medicamento eliminado correctamente');
             } catch (error) {
-              Alert.alert('❌', 'Error al eliminar el medicamento');
+              console.error('Error al eliminar:', error);
+              Alert.alert('❌ Error', 'No se pudo eliminar el medicamento');
             }
           },
         },
@@ -71,33 +90,40 @@ export default function HomeScreen() {
     );
   };
 
-  const handleEdit = (medication: Medication) => {
-    // Navegar a pantalla de edición
-    // router.push(`/medication/${medication.id}`);
-  };
-
-  const renderMedication = ({ item }: { item: Medication }) => (
+  // --------------------------------------------------------------------
+  // Render de cada medicamento
+  // --------------------------------------------------------------------
+  const renderMedication = ({ item }: { item: MedicationItem }) => (
     <View style={styles.medicationCard}>
       <View style={styles.medicationInfo}>
         <Text style={styles.medicationName}>{item.name}</Text>
-        <Text style={styles.medicationDosage}>{item.dosage}</Text>
-        <Text style={styles.medicationSchedule}>
-          Horarios: {item.schedule.join(', ')}
+        <Text style={styles.medicationDosage}>
+          {item.doseMg != null ? `${item.doseMg} mg` : 'Dosis no especificada'}
         </Text>
-        <Text style={styles.medicationQuantity}>
-          Cantidad: {item.quantity} pastillas
-        </Text>
+
+        {/* Si tienes schedule en el schema, descomenta */}
+        {/* {item.schedule && (
+          <Text style={styles.medicationSchedule}>
+            Horarios: {item.schedule.join(', ')}
+          </Text>
+        )} */}
+
+        {/* {item.quantity && (
+          <Text style={styles.medicationQuantity}>
+            Cantidad: {item.quantity} pastillas
+          </Text>
+        )} */}
       </View>
-      
+
       <View style={styles.actions}>
-        <TouchableOpacity 
-          onPress={() => handleEdit(item)}
+        <TouchableOpacity
+onPress={() => router.push({ pathname: "/medication", params: { id: item.id } })}
           style={styles.editButton}
         >
           <Ionicons name="pencil" size={20} color="#007AFF" />
         </TouchableOpacity>
-        
-        <TouchableOpacity 
+
+        <TouchableOpacity
           onPress={() => handleDelete(item)}
           style={styles.deleteButton}
         >
@@ -107,11 +133,16 @@ export default function HomeScreen() {
     </View>
   );
 
+  // --------------------------------------------------------------------
+  // Render principal
+  // --------------------------------------------------------------------
   return (
     <View style={styles.container}>
+      {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>Mis Medicamentos</Text>
-        <TouchableOpacity 
+
+        <TouchableOpacity
           style={styles.addButton}
           onPress={() => router.push('/medication')}
         >
@@ -120,6 +151,7 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* Lista o mensaje vacío */}
       {medications.length === 0 ? (
         <View style={styles.emptyState}>
           <Ionicons name="medical" size={64} color="#CCCCCC" />
@@ -132,7 +164,7 @@ export default function HomeScreen() {
         <FlatList
           data={medications}
           renderItem={renderMedication}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item) => String(item.id)}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
@@ -143,6 +175,9 @@ export default function HomeScreen() {
   );
 }
 
+// --------------------------------------------------------------------
+// Estilos
+// --------------------------------------------------------------------
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -184,10 +219,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
     elevation: 3,
   },
   medicationInfo: {
@@ -215,10 +246,11 @@ const styles = StyleSheet.create({
   },
   actions: {
     flexDirection: 'row',
-    gap: 12,
+    // `gap` no está ampliamente soportado en RN; usar margen/padding en botones
   },
   editButton: {
     padding: 8,
+    marginRight: 8,
   },
   deleteButton: {
     padding: 8,
