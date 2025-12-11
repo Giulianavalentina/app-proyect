@@ -1,8 +1,3 @@
-/**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
- */
-
 import { Platform } from 'react-native';
 
 const tintColorLight = '#0a7ea4';
@@ -16,6 +11,16 @@ export const Colors = {
     icon: '#687076',
     tabIconDefault: '#687076',
     tabIconSelected: tintColorLight,
+    // AÑADE ESTOS COLORES FALTANTES:
+    card: '#F5F5F5',
+    border: '#E0E0E0',
+    primary: '#007AFF',
+    success: '#34C759',
+    warning: '#FF9500',
+    error: '#FF3B30',
+    muted: '#8E8E93',
+    input: '#FFFFFF',
+    button: '#007AFF',
   },
   dark: {
     text: '#ECEDEE',
@@ -24,18 +29,24 @@ export const Colors = {
     icon: '#9BA1A6',
     tabIconDefault: '#9BA1A6',
     tabIconSelected: tintColorDark,
+    // AÑADE ESTOS COLORES FALTANTES:
+    card: '#1C1C1E',
+    border: '#38383A',
+    primary: '#0A84FF',
+    success: '#30D158',
+    warning: '#FF9F0A',
+    error: '#FF453A',
+    muted: '#8E8E93',
+    input: '#1C1C1E',
+    button: '#0A84FF',
   },
 };
 
 export const Fonts = Platform.select({
   ios: {
-    /** iOS `UIFontDescriptorSystemDesignDefault` */
     sans: 'system-ui',
-    /** iOS `UIFontDescriptorSystemDesignSerif` */
     serif: 'ui-serif',
-    /** iOS `UIFontDescriptorSystemDesignRounded` */
     rounded: 'ui-rounded',
-    /** iOS `UIFontDescriptorSystemDesignMonospaced` */
     mono: 'ui-monospace',
   },
   default: {
@@ -51,3 +62,21 @@ export const Fonts = Platform.select({
     mono: "SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
   },
 });
+
+// Espaciado y bordes para consistencia
+export const spacing = {
+  xs: 4,
+  sm: 8,
+  md: 16,
+  lg: 24,
+  xl: 32,
+  xxl: 48,
+};
+
+export const borderRadius = {
+  sm: 4,
+  md: 8,
+  lg: 12,
+  xl: 16,
+  round: 9999,
+};

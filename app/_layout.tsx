@@ -1,62 +1,126 @@
-import { Slot } from 'expo-router';
-import { SQLiteProvider } from 'expo-sqlite';
-import { Suspense } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+// app/(tabs)/_layout.tsx
+import { FontAwesome, MaterialIcons } from "@expo/vector-icons";
+import { Tabs } from "expo-router";
+import { SQLiteProvider } from "expo-sqlite";
+import React, { Suspense } from "react";
+import { StyleSheet, Text, View } from "react-native";
 
-// --- Funciones de Configuración de la Base de Datos ---
+// Inicialización de base de datos
+async function initializeDatabase(db: any) {
+  try {
+    // Tabla medications
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS medications (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        dose_mg INTEGER NOT NULL,
+        notes TEXT,
+        start_date INTEGER
+      );
+    `);
 
-// 1. Inicialización: Crea las tablas si no existen.
-async function initializeDatabase(db: SQLiteProvider['db']) {
-  // 1. Habilitar claves foráneas (IMPORTANTE para la tabla 'alarms')
-  await db.execAsync('PRAGMA foreign_keys = ON;');
-  
-  // 2. SQL para crear la tabla MEDICATIONS
-  await db.execAsync(`
-    CREATE TABLE IF NOT EXISTS medications (
-      id INTEGER PRIMARY KEY NOT NULL,
-      name TEXT NOT NULL,
-      dosage TEXT NOT NULL,
-      notes TEXT,
-      start_date INTEGER NOT NULL
-    );
-  `);
+    // Tabla alarms
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS alarms (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        medication_id INTEGER NOT NULL,
+        time TEXT NOT NULL,
+        days TEXT,
+        active INTEGER DEFAULT 1
+      );
+    `);
 
-  // 3. SQL para crear la tabla ALARMS con clave foránea
-  await db.execAsync(`
-    CREATE TABLE IF NOT EXISTS alarms (
-      id INTEGER PRIMARY KEY NOT NULL,
-      medication_id INTEGER NOT NULL,
-      time TEXT NOT NULL,
-      days TEXT NOT NULL,
-      is_active INTEGER NOT NULL DEFAULT 1,
-      FOREIGN KEY (medication_id) REFERENCES medications(id) ON DELETE CASCADE
-    );
-  `);
-  
-  console.log("Base de datos de Medicamentos y Alarmas inicializada correctamente.");
+    console.log("✅ Base de datos lista");
+  } catch (error) {
+    console.error("Error inicializando BD:", error);
+  }
 }
 
-// 2. Fallback de Carga
+// Componente de carga
 function DatabaseLoadingFallback() {
   return (
     <View style={styles.fallbackContainer}>
-      <Text style={styles.fallbackText}>Cargando datos. Por favor, espera...</Text>
+      <Text style={styles.fallbackText}>Cargando aplicación...</Text>
     </View>
   );
 }
 
-// --- Componente Principal ---
-
-export default function RootLayout() {
+// Layout principal con TABS
+export default function TabLayout() {
   return (
     <Suspense fallback={<DatabaseLoadingFallback />}>
       <SQLiteProvider
-        databaseName="app-db.db" // Nombre del archivo de tu BD
+        databaseName="pastillero.db"
         onInit={initializeDatabase}
         useSuspense
       >
-        {/* Slot renderiza el resto de la aplicación (incluyendo las pestañas) */}
-        <Slot />
+        <Tabs
+          screenOptions={{
+            headerShown: false,
+            tabBarActiveTintColor: "#2ecc71",
+            tabBarInactiveTintColor: "#95a5a6",
+            tabBarStyle: {
+              backgroundColor: "#ffffff",
+              borderTopWidth: 1,
+              borderTopColor: "#ecf0f1",
+              height: 60,
+              paddingBottom: 8,
+              paddingTop: 8,
+            },
+            tabBarLabelStyle: {
+              fontSize: 12,
+              fontWeight: "500",
+            },
+          }}
+        >
+          {/* Pantalla de Inicio */}
+          <Tabs.Screen
+            name="index"
+            options={{
+              title: "Inicio",
+              tabBarIcon: ({ color, size }) => (
+                <FontAwesome name="home" size={size} color={color} />
+              ),
+            }}
+          />
+
+          {/* Pantalla del Pastillero (WIFI) */}
+          <Tabs.Screen
+            name="pasilliero"
+            options={{
+              title: "Pastillero",
+              tabBarIcon: ({ color, size }) => (
+                <MaterialIcons
+                  name="medical-services"
+                  size={size}
+                  color={color}
+                />
+              ),
+            }}
+          />
+
+          {/* Pantalla de Alarmas */}
+          <Tabs.Screen
+            name="alarms"
+            options={{
+              title: "Alarmas",
+              tabBarIcon: ({ color, size }) => (
+                <FontAwesome name="bell" size={size} color={color} />
+              ),
+            }}
+          />
+
+          {/* Pantalla de Medicamentos */}
+          <Tabs.Screen
+            name="medication"
+            options={{
+              title: "Medicamentos",
+              tabBarIcon: ({ color, size }) => (
+                <MaterialIcons name="medication" size={size} color={color} />
+              ),
+            }}
+          />
+        </Tabs>
       </SQLiteProvider>
     </Suspense>
   );
@@ -65,12 +129,13 @@ export default function RootLayout() {
 const styles = StyleSheet.create({
   fallbackContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f5f5f5',
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#f8f9fa",
   },
   fallbackText: {
     fontSize: 18,
-    color: '#333',
-  }
+    color: "#2c3e50",
+    fontWeight: "600",
+  },
 });
